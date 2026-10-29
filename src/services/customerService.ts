@@ -630,6 +630,75 @@ export const customerService = {
   /**
    * Interactive Churn Risk Simulator
    */
+
+  async predictChurnRisk(params: {
+    contract: ContractType
+    tenure: number
+    monthlyCharges: number
+    internetService: InternetServiceType
+    techSupport: boolean
+    onlineSecurity: boolean
+    paperlessBilling: boolean
+  }): Promise<{
+    riskScore: number
+    churnRisk: RiskLevel
+    predictionConfidence: number
+    factors: RiskFactor[]
+  }> {
+    const internet = params.internetService
+    const noInternet = internet === 'No'
+    const probabilityResponse = await fetch('http://127.0.0.1:8000/predict', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        gender: 'Male',
+        SeniorCitizen: 0,
+        Partner: 'Yes',
+        Dependents: 'No',
+        tenure: params.tenure,
+        PhoneService: 'Yes',
+        MultipleLines: 'No',
+        InternetService: internet,
+        OnlineSecurity: noInternet
+          ? 'No internet service'
+          : params.onlineSecurity ? 'Yes' : 'No',
+        OnlineBackup: noInternet ? 'No internet service' : 'No',
+        DeviceProtection: noInternet ? 'No internet service' : 'No',
+        TechSupport: noInternet
+          ? 'No internet service'
+          : params.techSupport ? 'Yes' : 'No',
+        StreamingTV: noInternet ? 'No internet service' : 'No',
+        StreamingMovies: noInternet ? 'No internet service' : 'No',
+        Contract: params.contract,
+        PaperlessBilling: params.paperlessBilling ? 'Yes' : 'No',
+        PaymentMethod: 'Electronic check',
+        MonthlyCharges: params.monthlyCharges,
+        TotalCharges: Number(
+          (params.monthlyCharges * params.tenure).toFixed(2)
+        ),
+      }),
+    })
+
+    if (!probabilityResponse.ok) {
+      const message = await probabilityResponse.text()
+      throw new Error(`ML API error (${probabilityResponse.status}): ${message}`)
+    }
+
+    const result: {
+      churn_probability: number
+      risk_category: RiskLevel
+    } = await probabilityResponse.json()
+
+    return {
+      riskScore: result.churn_probability,
+      churnRisk: result.risk_category,
+      predictionConfidence: Math.round(
+        Math.max(result.churn_probability, 1 - result.churn_probability) * 100
+      ),
+      factors: [],
+    }
+  },
+
   simulateChurnRisk(params: {
     contract: ContractType
     tenure: number

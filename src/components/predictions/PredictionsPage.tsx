@@ -79,25 +79,49 @@ export const PredictionsPage: React.FC = () => {
 
   // Recalculate simulation on parameter change
   useEffect(() => {
-    const res = customerService.simulateChurnRisk({
-      contract: simContract,
-      tenure: simTenure,
-      monthlyCharges: simMonthlyCharges,
-      internetService: simInternetService,
-      techSupport: simTechSupport,
-      onlineSecurity: simOnlineSecurity,
-      paperlessBilling: simPaperlessBilling,
-    })
-    setSimulationResult(res)
-  }, [
-    simContract,
-    simTenure,
-    simMonthlyCharges,
-    simInternetService,
-    simTechSupport,
-    simOnlineSecurity,
-    simPaperlessBilling,
-  ])
+  let cancelled = false
+
+  async function runPrediction() {
+    try {
+      const result = await customerService.predictChurnRisk({
+        contract: simContract,
+        tenure: simTenure,
+        monthlyCharges: simMonthlyCharges,
+        internetService: simInternetService,
+        techSupport: simTechSupport,
+        onlineSecurity: simOnlineSecurity,
+        paperlessBilling: simPaperlessBilling,
+      })
+
+      if (!cancelled) {
+        setSimulationResult(result)
+      }
+    } catch (err) {
+      if (!cancelled) {
+        console.error('ML prediction failed:', err)
+        toastError(
+          'ML prediction failed',
+          err instanceof Error ? err.message : 'Could not reach the ML API.'
+        )
+      }
+    }
+  }
+
+  void runPrediction()
+
+  return () => {
+    cancelled = true
+  }
+}, [
+  simContract,
+  simTenure,
+  simMonthlyCharges,
+  simInternetService,
+  simTechSupport,
+  simOnlineSecurity,
+  simPaperlessBilling,
+  toastError,
+])
 
   const handleResetSimulation = () => {
     setSimContract('Month-to-month')
@@ -629,3 +653,4 @@ export const PredictionsPage: React.FC = () => {
     </div>
   )
 }
+
